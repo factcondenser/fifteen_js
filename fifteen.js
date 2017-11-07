@@ -52,6 +52,7 @@ var welcomeID, // an interval id for the rainbow title
         BUTTON_HEIGHT,
         "Help (H)",
         helpStyle),
+    showingHelp = false,
     back = new interect(
         0,
         0,
@@ -451,14 +452,6 @@ function showHelp() {
         canvas.width / 2, canvas.height - 75);
     ctx.fillText("To win, order the tiles from least to greatest, with the empty space in the lower right corner.",
         canvas.width / 2, canvas.height - 50);
-
-}
-
-/**
- * Hides instructions.
- */
-function hideHelp() {
-    showingHelp = false;
 }
 
 /**
