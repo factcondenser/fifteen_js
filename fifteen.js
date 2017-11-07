@@ -25,13 +25,14 @@ var tileWidth = 50,
     tileHoverStyle = new style("#ff0", "bold italic 24px Arial", "#000"),
     emptyStyle = new style("", "", "");
 // board vars
-var d, empX, empY, moveables = [];
+var d, emp, moveables;
 // game vars
 var started = false,
     paused = false,
     finished = false;
 // UI vars
 var welcome,
+    moving = false,
     helpStyle = new style("#000", "18px Arial", "#fff"),
     helpHoverStyle = new style("#000", "italic 18px Arial", "#ff0"),
     help = new interect(
@@ -41,6 +42,7 @@ var welcome,
         buttonHeight,
         "Help (H)",
         helpStyle),
+    showingHelp = false,
     back = new interect(
         0,
         0,
@@ -89,8 +91,8 @@ function interect(xpos, ypos, wd, ht, txt, sty, val, ord) {
 // bind events to the canvas
 canvas.addEventListener('click', clickHandler, false);
 canvas.addEventListener('mousemove', mousemoveHandler, false);
-// document.addEventListener('keydown', keydownHandler, false);
-// document.addEventListener('keyup', keyupHandler, false)
+document.addEventListener('keydown', keydownHandler, false);
+document.addEventListener('keyup', keyupHandler, false)
 
 /**
  * Clears canvas.
@@ -131,12 +133,11 @@ function clickHandler(e) {
         }
     } else if (!finished) {
         if (isInside(mousePos, back)) location.reload();
-        for (let r = 0; r < d; r++) {
-            for (let c = 0; c < d; c++) {
-                var curTile = tiles[r][c];
-                if (isInside(mousePos, curTile) && moveable(curTile)) move(curTile);
+        moveables.forEach(function(tile) {
+            if (tile != undefined) {
+                if (isInside(mousePos, tile)) move(tile);
             }
-        }
+        });
     } else {
         if (isInside(mousePos, playAgain)) location.reload();
     }
@@ -149,6 +150,7 @@ function mousemoveHandler(e) {
             for (let c = 0; c < BUTTON_COL_COUNT; c++) {
                 var cur = buttons[r][c];
                 isInside(mousePos, cur) ? (cur.text = Math.pow(cur.value, 2) - 1 + " tiles", cur.style = buttonHoverStyle) : (cur.text = cur.value + " x " + cur.value, cur.style = buttonStyle);
+                // no animation here, so redraw shape
                 drawShape(cur);
             }
         }
@@ -162,48 +164,47 @@ function mousemoveHandler(e) {
         back.style = isInside(mousePos, back) ? helpHoverStyle : helpStyle;
     } else {
         playAgain.style.textStyle = isInside(mousePos, playAgain) ? "italic 28px Arial" : "28px Arial";
+        // no animation here, so redraw shape
         drawShape(playAgain);
     }
 }
 
-// function keydownHandler(e) {
-//     if (started && !finished) {
-//         for (let r = 0; r < d; r++) {
-//             for (let c = 0; c < d; c++) {
-//                 switch (e.keycode) {
-//                     case 37:
+function keydownHandler(e) {
+    if (started && !finished) {
+        // address issue of player using key to move tile while hovering with mouse  
+        moveables.forEach(function(tile) {
+            if (tile != undefined) {
+                tile.style = tileStyle;
+            }
+        });
+        switch (e.keyCode) {
+            case 37: // left arrow
+                move(moveables[2]);
+                break;
+            case 38: // up arrow
+                move(moveables[3]);
+                break;
+            case 39: // right arrow
+                move(moveables[0]);
+                break;
+            case 40: // down arrow
+                move(moveables[1]);
+                break;
+            case 66: // b for back
+                location.reload();
+                break;
+            case 72: // h for help
+                showHelp();
+        }
+    }
+}
 
-//                         break;
-//                     case 38:
-//                         upPressed = true;
-//                         break;
-//                     case 39:
-//                         rightPressed = true;
-//                         break;
-//                     case 40:
-//                         downPressed = true;
-//                         break;
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// function keyUpHandler(e) {
-//     switch (e.keycode) {
-//         case 37:
-//             leftPressed = false;
-//             break;
-//         case 38:
-//             upPressed = false;
-//             break;
-//         case 39:
-//             rightPressed = false;
-//             break;
-//         case 40:
-//             downPressed = false;
-//     }
-// }
+function keyupHandler(e) {
+    switch (e.keyCode) {
+        case 72: // h for help
+            hideHelp();
+    }
+}
 
 /**
  * Gets the mouse position.
@@ -269,11 +270,8 @@ function initializeTiles() {
     }
     // for boards with odd number of tiles, swap 3rd-to-last and 2nd-to-last tiles
     if (d % 2 == 0) swapTiles(tiles[d - 1][d - 2], tiles[d - 1][d - 3]);
-    // initialize coordinates of empty space
-    var emp = tiles[d - 1][d - 1];
-    empX = emp.x;
-    empY = emp.y;
     // initialize the empty space
+    emp = tiles[d - 1][d - 1];
     emp.text = " ";
     emp.style = emptyStyle;
     // record the tiles adjacent to the empty space
@@ -310,36 +308,14 @@ function drawShape(shape) {
  * returns false.
  */
 function move(tile) {
-    // enable movement using keys assigned to UP, LEFT, DOWN, and RIGHT
-    // if (tile == UP_INT && emprow < d - 1) {
-    //     To win, order the tiles from least to greatest, with the empty space in the lower right corner."emprow + 1, empcol, emprow, empcol);
-    //     emprow++;
-    //     return true;
-    // }
-    // if (tile == LEFT_INT && empcol < d - 1) {
-    //     swaptiles(emprow, empcol + 1, emprow, empcol);
-    //     empcol++;
-    //     return true;
-    // }
-    // if (tile == DOWN_INT && emprow > 0) {
-    //     swaptiles(emprow - 1, empcol, emprow, empcol);
-    //     emprow--;
-    //     return true;
-    // }
-    // if (tile == RIGHT_INT && empcol > 0) {
-    //     swaptiles(emprow, empcol - 1, emprow, empcol);
-    //     empcol--;
-    //     return true;
-    // }
-
     /** enable movement using mouse **/
-    // move the tile
-    swapTiles(tile, tiles[d - 1][d - 1]);
-    // record new coordinates of empty space
-    empX = tile.x;
-    empY = tile.y;
-    // update moveables array
-    updateMoveables();
+    if (!moving && tile != undefined) {
+        moving = true;
+        // move the tile
+        swapTiles(tile, emp);
+        // update moveables array
+        updateMoveables();
+    }
 }
 
 /**
@@ -392,15 +368,16 @@ function updateMoveables() {
     for (let r = 0; r < d; r++) {
         for (let c = 0; c < d; c++) {
             var t = tiles[r][c];
-            if (t.y == empY) {
-                if (t.x - empX == xDiff) moveables[2] = t; // right of empty
-                else if (t.x - empX == -xDiff) moveables[0] = t; // left of empty
-            } else if (t.x == empX) {
-                if (t.y - empY == yDiff) moveables[3] = t; // below empty
-                else if (t.y - empY == -yDiff) moveables[1] = t; // above empoty
+            if (t.y == emp.y) {
+                if (t.x - emp.x == xDiff) moveables[2] = t; // right of empty
+                else if (t.x - emp.x == -xDiff) moveables[0] = t; // left of empty
+            } else if (t.x == emp.x) {
+                if (t.y - emp.y == yDiff) moveables[3] = t; // below empty
+                else if (t.y - emp.y == -yDiff) moveables[1] = t; // above empoty
             }
         }
     }
+    moving = false;
 }
 
 /**
@@ -418,7 +395,6 @@ function drawUI() {
         //drawShape(moves);
     } else {
         drawTiles();
-        congratulate();
         cycleColors(playAgain);
     }
 }
@@ -427,12 +403,15 @@ function drawUI() {
  * Shows instructions.
  */
 function showHelp() {
-    ctx.font = "18px Arial";
-    ctx.fillStyle = "#fff";
-    ctx.fillText("Click or use arrow keys to move tiles into the empty space.",
-        canvas.width / 2, canvas.height - 75);
-    ctx.fillText("To win, order the tiles from least to greatest, with the empty space in the lower right corner.",
-        canvas.width / 2, canvas.height - 50);
+    if (!showingHelp) {
+        ctx.font = "18px Arial";
+        ctx.fillStyle = "#fff";
+        ctx.fillText("Click or use arrow keys to move tiles into the empty space.",
+            canvas.width / 2, canvas.height - 75);
+        ctx.fillText("To win, order the tiles from least to greatest, with the empty space in the lower right corner.",
+            canvas.width / 2, canvas.height - 50);
+    }
+    showingHelp = true;
 }
 
 /**
@@ -440,6 +419,7 @@ function showHelp() {
  */
 function hideHelp() {
     ctx.clearRect(0, canvas.height - (buttonHeight + 50), canvas.width, 55);
+    showingHelp = false;
 }
 
 /**
@@ -532,7 +512,7 @@ function stopRainbow(rainbow) {
 }
 
 /**
- * FILL_IN
+ * Animates the game.
  */
 function draw() {
     if (!won()) {
@@ -542,6 +522,7 @@ function draw() {
         finished = true;
         clear();
         drawUI();
+        congratulate();
     }
 }
 
