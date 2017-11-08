@@ -1,7 +1,15 @@
 /* canvas vars */
 var canvas = document.getElementById("myCanvas"),
     ctx = canvas.getContext("2d");
-/* button vars */
+/* booleans */
+var started = false,
+    paused = false,
+    finished = false,
+    moving = false,
+    showingHelp = false;
+/* UI vars */
+var welcomeID; // an interval id for the rainbow title
+// menu buttons
 const BUTTON_ROW_COUNT = 2;
 const BUTTON_COL_COUNT = 4;
 const BUTTON_WIDTH = 100;
@@ -12,63 +20,71 @@ var buttonPadding,
     buttons = [],
     buttonStyle = new style("#fff", "28px Arial", "#000"),
     buttonHoverStyle = new style("#ff0", "bold italic 24px Arial", "#000");
-/* tile vars */
+// tiles
 const TILE_WIDTH = 50;
 const TILE_HEIGHT = 50;
-var tilePadding,
+var d, // dimension of the board 
+    tilePadding,
     tileOffSetLeft,
     tileOffsetTop,
     tiles = [],
     tileStyle = new style("#fff", "24px Arial", "#000"),
     tileHoverStyle = new style("#ff0", "bold italic 24px Arial", "#000"),
-    emptyStyle = new style("", "", "");
-/* board vars */
-var d, // dimension of the board 
+    emptyStyle = new style("", "", ""),
     emp, // the empty space tile
     moveables; // an array of the moveable tiles
-/* game vars */
-var started = false,
-    paused = false,
-    finished = false,
-    clockID, // an interval id for clock
-    clockStyle = new style("#000", "Bold 24px Arial", '#fff'),
-    clock = new interect(
-        canvas.width - (BUTTON_WIDTH * 2),
-        0,
-        BUTTON_WIDTH * 2,
-        BUTTON_HEIGHT * 2,
-        "Time: 00:00:00",
-        clockStyle);
-/* UI vars */
-var welcomeID, // an interval id for the rainbow title
-    moving = false,
-    showingHelp = false,
-    helpStyle = new style("#000", "18px Arial", "#fff"),
+// help button
+var helpStyle = new style("#000", "18px Arial", "#fff"),
     helpHoverStyle = new style("#000", "italic 18px Arial", "#ff0"),
     help = new interect(
         0,
         canvas.height - BUTTON_HEIGHT,
         BUTTON_WIDTH,
         BUTTON_HEIGHT,
+        "center",
         "Help (H)",
-        helpStyle),
-    showingHelp = false,
-    back = new interect(
-        0,
-        0,
-        BUTTON_WIDTH,
-        BUTTON_HEIGHT,
-        "< Back (B)",
-        helpStyle),
-    playAgainStyle = new style("#000", "bold 28px Arial", "#fff"),
+        helpStyle);
+// back button
+var back = new interect(
+    0,
+    0,
+    BUTTON_WIDTH,
+    BUTTON_HEIGHT,
+    "center",
+    "  < Back (B)",
+    helpStyle);
+// play again button
+var playAgainStyle = new style("#000", "bold 28px Arial", "#fff"),
     playAgain = new interect(
-        canvas.width - (buttonPadding + BUTTON_WIDTH + 75),
-        canvas.height - (buttonPadding + BUTTON_HEIGHT),
+        canvas.width - (BUTTON_WIDTH / 2 + BUTTON_WIDTH + 75),
+        canvas.height - (BUTTON_WIDTH / 2 + BUTTON_HEIGHT),
         BUTTON_WIDTH + 75, // make wider to fit text
         BUTTON_HEIGHT,
+        "center",
         "Play Again?",
         playAgainStyle);
-/* rainbow vars */
+// clock
+var clockID, // an interval id for clock
+    clockStyle = new style("#000", "Bold 24px Arial", '#fff'),
+    clock = new interect(
+        canvas.width - (BUTTON_WIDTH * 2),
+        10,
+        BUTTON_WIDTH * 2,
+        BUTTON_HEIGHT,
+        "left",
+        "Time: 00:00:00",
+        clockStyle);
+// moves counter
+var movesCount = 0,
+    movesCounter = new interect(
+        clock.x,
+        5 + clock.height,
+        clock.width,
+        clock.height,
+        "left",
+        "Moves: " + movesCount,
+        clockStyle);
+// rainbow
 const COLORS = ["#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#9400D3"];
 const TEXT_ALIGN = "center";
 var startColor = 0,
@@ -87,11 +103,12 @@ function style(f, ts, tc) {
     this.textColor = tc;
 }
 // a rectangle with which users may interact.
-function interect(xpos, ypos, wd, ht, txt, sty, val, ord) {
+function interect(xpos, ypos, wd, ht, anc, txt, sty, val, ord) {
     this.x = xpos;
     this.y = ypos;
     this.width = wd;
     this.height = ht;
+    this.anchor = anc; // text anchor
     this.text = txt;
     this.style = sty;
     this.value = val;
@@ -116,10 +133,8 @@ function clear() {
  */
 function greet() {
     clear();
-    ctx.textAlign = "center";
-    ctx.font = "bold 32px Arial";
-    ctx.fillStyle = "#fff";
     welcomeID = rainbow("WELCOME TO GAME OF FIFTEEN", canvas.width / 2, 200, "bold 32px Arial", 100);
+    ctx.textAlign = "center";
     ctx.font = "24px Arial";
     ctx.fillText("Please choose a board size", canvas.width / 2, 275);
     drawUI();
@@ -251,7 +266,7 @@ function initializeButtons() {
             var buttonX = c * (BUTTON_WIDTH + buttonPadding) + buttonOffsetLeft;
             var buttonY = r * (BUTTON_HEIGHT + buttonPadding) + buttonOffsetTop;
             var buttonText = curDim + " x " + curDim;
-            buttons[r][c] = new interect(buttonX, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT, buttonText, buttonStyle, curDim++);
+            buttons[r][c] = new interect(buttonX, buttonY, BUTTON_WIDTH, BUTTON_HEIGHT, "center", buttonText, buttonStyle, curDim++);
         }
     }
 }
@@ -281,7 +296,7 @@ function initializeTiles() {
             var tileX = c * (TILE_WIDTH + tilePadding) + tileOffsetLeft;
             var tileY = r * (TILE_HEIGHT + tilePadding) + tileOffsetTop;
             var ord = d * d - val;
-            tiles[r][c] = new interect(tileX, tileY, TILE_WIDTH, TILE_HEIGHT, val, tileStyle, val--, ord);
+            tiles[r][c] = new interect(tileX, tileY, TILE_WIDTH, TILE_HEIGHT, "center", val, tileStyle, val--, ord);
         }
     }
     // for boards with odd number of tiles, swap 3rd-to-last and 2nd-to-last tiles
@@ -316,7 +331,13 @@ function drawInterect(interect) {
     ctx.closePath();
     ctx.font = interect.style.textStyle;
     ctx.fillStyle = interect.style.textColor;
-    ctx.fillText(interect.text, interect.x + (interect.width / 2), interect.y + 35);
+    var anc = interect.anchor,
+        txtX;
+    if (anc == "center") txtX = interect.x + (interect.width / 2);
+    else if (anc == "left") txtX = interect.x;
+    else if (anc == "right") txtX = interect.x + interect.width;
+    ctx.textAlign = anc;
+    ctx.fillText(interect.text, txtX, interect.y + 35);
 }
 
 /**
@@ -331,6 +352,7 @@ function move(tile) {
         swapTiles(tile, emp);
         // update moveables array
         updateMoveables();
+        updateMovesCounter();
     }
 }
 
@@ -403,13 +425,15 @@ function drawUI() {
     if (!started) {
         initializeButtons();
         drawButtons();
-    } else if (!finished) {
+    } else {
+        if (!finished) {
+            drawInterect(help);
+            if (showingHelp) showHelp();
+            drawInterect(back);
+        }
         drawTiles();
-        drawInterect(help);
-        if (showingHelp) showHelp();
-        drawInterect(back);
         drawInterect(clock);
-        //drawInterect(moves);
+        drawInterect(movesCounter);
     }
 }
 
@@ -442,10 +466,18 @@ function updateClock(time) {
 function stopClock() {
     clearInterval(clockID);
 }
+
+/**
+ * Updates the moves counter.
+ */
+function updateMovesCounter() {
+    movesCounter.text = (movesCount > 10000) ? "Moves: 10000+" : "Moves: " + ++movesCount;
+}
 /**
  * Shows instructions.
  */
 function showHelp() {
+    ctx.textAlign = "center";
     ctx.font = "18px Arial";
     ctx.fillStyle = "#fff";
     ctx.fillText("Click or use arrow keys to move tiles into the empty space.",
@@ -461,6 +493,7 @@ function congratulate() {
     var message = (d == 3) ? ["Not bad.", "Can you solve a more challenging one now?"] :
         (d > 3 && d <= 6) ? ["Congratulations!", "You've been practicing."] :
         (d > 6 && d <= 9) ? ["Impressive!", "You're really good at this!"] : ["All hail the Master of Fifteen!", "Maybe take a break now?"];
+    ctx.textAlign = "center";
     ctx.font = "bold 32px Arial";
     ctx.fillStyle = "#fff";
     ctx.fillText(message[0],
@@ -554,18 +587,10 @@ function draw() {
         stopClock();
         finished = true;
         clear();
-        drawTiles();
+        drawUI();
         congratulate();
         cycleColors(playAgain);
     }
 }
 
 greet();
-
-
-today = new Date();
-var m = today.getMinutes();
-var h = today.getHours();
-var d = today.getDate()
-var n = today.getMonth() + 1
-var y = today.getYear()
