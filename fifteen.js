@@ -1,3 +1,10 @@
+/**
+ * TO-DO
+ * 1) Re-write rainbow() using prototypes
+ * 2) Animate tile movement
+ * 3) Get cycleColors() to support more than just fill changes
+ */
+
 /* canvas vars */
 var canvas = document.getElementById("myCanvas"),
     ctx = canvas.getContext("2d");
@@ -30,6 +37,7 @@ var d, // dimension of the board
     tiles = [],
     tileStyle = new style("#fff", "24px Arial", "#000"),
     tileHoverStyle = new style("#ff0", "bold italic 24px Arial", "#000"),
+    tileGoodStyle = new style("#0f0", "bold 24px Arial", "#000"),
     emptyStyle = new style("", "", ""),
     emp, // the empty space tile
     moveables; // an array of the moveable tiles
@@ -133,10 +141,11 @@ function clear() {
  */
 function greet() {
     clear();
-    welcomeID = rainbow("WELCOME TO GAME OF FIFTEEN", canvas.width / 2, 200, "bold 32px Arial", 100);
+    welcomeID = rainbow("WELCOME TO GAME OF FIFTEEN", canvas.width / 2, canvas.height / 4, "bold 32px Arial", 100);
     ctx.textAlign = "center";
     ctx.font = "24px Arial";
-    ctx.fillText("Please choose a board size", canvas.width / 2, 275);
+    ctx.fillStyle = "#fff";
+    ctx.fillText("Please choose a board size:", canvas.width / 2, canvas.height / 2 - 150);
     drawUI();
 }
 
@@ -315,6 +324,10 @@ function initializeTiles() {
 function drawTiles() {
     for (let r = 0; r < d; r++) {
         for (let c = 0; c < d; c++) {
+            /* highlights tiles when they are in the correct position */
+            // var t = tiles[r][c],
+            //     tmp = t.style;
+            // if (t != emp) t.style = (t.ordinal == t.value) ? tileGoodStyle : tmp;
             drawInterect(tiles[r][c]);
         }
     }
@@ -426,14 +439,17 @@ function drawUI() {
         initializeButtons();
         drawButtons();
     } else {
+        drawTiles();
+        drawInterect(clock);
+        drawInterect(movesCounter);
         if (!finished) {
             drawInterect(help);
             if (showingHelp) showHelp();
             drawInterect(back);
+        } else {
+            // fancy tiles effect on win
+            fancyTiles();
         }
-        drawTiles();
-        drawInterect(clock);
-        drawInterect(movesCounter);
     }
 }
 
@@ -493,31 +509,47 @@ function congratulate() {
     var message = (d == 3) ? ["Not bad.", "Can you solve a more challenging one now?"] :
         (d > 3 && d <= 6) ? ["Congratulations!", "You've been practicing."] :
         (d > 6 && d <= 9) ? ["Impressive!", "You're really good at this!"] : ["All hail the Master of Fifteen!", "Maybe take a break now?"];
-    ctx.textAlign = "center";
-    ctx.font = "bold 32px Arial";
-    ctx.fillStyle = "#fff";
-    ctx.fillText(message[0],
+    
+    rainbow(message[0],
         canvas.width / 2,
-        tileOffsetTop / 2);
-    rainbow(message[1],
-        canvas.width / 2,
-        tileOffsetTop * 3 / 4,
-        "italic 22px Arial",
+        tileOffsetTop / 2,
+        "bold 32px Arial",
         100);
+    ctx.textAlign = "center";
+    ctx.font = "italic 22px Arial";
+    ctx.fillStyle = "#fff";
+    ctx.fillText(message[1],
+        canvas.width / 2,
+        tileOffsetTop * 3 / 4);
+}
+
+/**
+ * Prints fancy rainbow tiles.
+ */
+function fancyTiles() {
+    let i = 0;
+    for (let r = d - 1; r >= 0; r--) {
+        for (let c = d - 1; c >= 0; c--) {
+            if (tiles[r][c] != emp) {
+                if (i >= COLORS.length) i = 0;
+                cycleColors(tiles[r][c], i++, 100);
+            }
+        }
+    }
 }
 
 /**
  * Changes text color of a given interect at a regular interval.
  */
-function cycleColors(interect) {
-    var cur = 0;
+function cycleColors(interect, startIndex, time) {
+    let cur = startIndex;
     setInterval(function() {
         interect.style.fill = COLORS[cur];
         // hacky fix to make text visible when fill is yellow or green
         interect.style.textColor = (cur == 2 || cur == 3) ? "#000" : "#fff";
-        if (++cur >= COLORS.length) cur = 0;
+        if (--cur < 0) cur = COLORS.length - 1;
         drawInterect(interect);
-    }, 1000);
+    }, time);
 }
 
 /**
@@ -589,7 +621,7 @@ function draw() {
         clear();
         drawUI();
         congratulate();
-        cycleColors(playAgain);
+        cycleColors(playAgain, COLORS.length - 1, 1000);
     }
 }
 
