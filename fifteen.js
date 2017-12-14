@@ -131,7 +131,9 @@ function interect(xpos, ypos, wd, ht, anc, txt, sty, val, ord) {
 canvas.addEventListener('click', clickHandler, false);
 canvas.addEventListener('mousemove', mousemoveHandler, false);
 document.addEventListener('keydown', keydownHandler, false);
-document.addEventListener('keyup', keyupHandler, false)
+document.addEventListener('keyup', keyupHandler, false);
+window.addEventListener('resize', resizeCanvas, false);
+window.addEventListener('orientationchange', resizeCanvas, false);
 
 /**
  * Clears canvas.
@@ -153,7 +155,7 @@ function greet() {
     drawUI();
 }
 
-function onResize() {
+function resizeCanvas() {
     // set canvas width and height
     ctx.canvas.width  = window.innerWidth;
     ctx.canvas.height = window.innerHeight;
