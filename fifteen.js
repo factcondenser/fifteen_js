@@ -8,6 +8,8 @@
 /* canvas vars */
 var canvas = document.getElementById("myCanvas"),
     ctx = canvas.getContext("2d");
+    ctx.canvas.width  = window.innerWidth;
+    ctx.canvas.height = window.innerHeight;
 /* booleans */
 var started = false,
     paused = false,
@@ -15,7 +17,10 @@ var started = false,
     moving = false,
     showingHelp = false;
 /* UI vars */
-var welcomeID; // an interval id for the rainbow title
+var welcomeID = null, // interval id for the rainbow title
+    congratsID = null, // interval id for the rainbow congrats message
+    fancyTilesIDs = [], // interval id for the fancyTiles effect
+    playAgainID = null; // interval id for the playAgain effect
 // menu buttons
 const BUTTON_ROW_COUNT = 2;
 const BUTTON_COL_COUNT = 4;
@@ -30,7 +35,7 @@ var buttonPadding,
 // tiles
 const TILE_WIDTH = 50;
 const TILE_HEIGHT = 50;
-var d, // dimension of the board 
+var d, // dimension of the board
     tilePadding,
     tileOffSetLeft,
     tileOffsetTop,
@@ -38,7 +43,6 @@ var d, // dimension of the board
     tileStyle = new style("#fff", "24px Arial", "#000"),
     tileHoverStyle = new style("#ff0", "bold italic 24px Arial", "#000"),
     tileGoodStyle = new style("#0f0", "bold 24px Arial", "#000"),
-    emptyStyle = new style("", "", ""),
     emp, // the empty space tile
     moveables; // an array of the moveable tiles
 // help button
@@ -46,7 +50,7 @@ var helpStyle = new style("#000", "18px Arial", "#fff"),
     helpHoverStyle = new style("#000", "italic 18px Arial", "#ff0"),
     help = new interect(
         0,
-        canvas.height - BUTTON_HEIGHT,
+        ctx.canvas.height - BUTTON_HEIGHT,
         BUTTON_WIDTH,
         BUTTON_HEIGHT,
         "center",
@@ -64,8 +68,8 @@ var back = new interect(
 // play again button
 var playAgainStyle = new style("#000", "bold 28px Arial", "#fff"),
     playAgain = new interect(
-        canvas.width - (BUTTON_WIDTH / 2 + BUTTON_WIDTH + 75),
-        canvas.height - (BUTTON_WIDTH / 2 + BUTTON_HEIGHT),
+        ctx.canvas.width - (BUTTON_WIDTH / 2 + BUTTON_WIDTH + 75),
+        ctx.canvas.height - (BUTTON_WIDTH / 2 + BUTTON_HEIGHT),
         BUTTON_WIDTH + 75, // make wider to fit text
         BUTTON_HEIGHT,
         "center",
@@ -75,7 +79,7 @@ var playAgainStyle = new style("#000", "bold 28px Arial", "#fff"),
 var clockID, // an interval id for clock
     clockStyle = new style("#000", "Bold 24px Arial", '#fff'),
     clock = new interect(
-        canvas.width - (BUTTON_WIDTH * 2),
+        ctx.canvas.width - (BUTTON_WIDTH * 2),
         10,
         BUTTON_WIDTH * 2,
         BUTTON_HEIGHT,
@@ -98,7 +102,7 @@ const TEXT_ALIGN = "center";
 var startColor = 0,
     curColor = 0,
     chars,
-    charD, // estimated width/height of a char in rainbow 
+    charD, // estimated width/height of a char in rainbow
     txtWd, // width of the rainbow
     startX, // x position of the first char of the rainbow
     yPos,
@@ -149,6 +153,41 @@ function greet() {
     drawUI();
 }
 
+function onResize() {
+    // set canvas width and height
+    ctx.canvas.width  = window.innerWidth;
+    ctx.canvas.height = window.innerHeight;
+
+    if (welcomeID != null) {
+        stopRainbow(welcomeID);
+        welcomeID = null;
+        greet();
+    }
+    if (congratsID != null) {
+        stopRainbow(congratsID);
+        congratsID = null;
+        congratulate();
+    }
+
+    if (started) adjustTilePositions();
+    // adjust clock and moveCounter positions
+    clock.x = ctx.canvas.width - (BUTTON_WIDTH * 2);
+    clock.y = 10;
+    movesCounter.x = clock.x;
+    movesCounter.y = 5 + clock.height;
+    // adjust back and help positions
+    back.x = 0;
+    back.y = 0;
+    help.x = 0;
+    help.y = ctx.canvas.height - BUTTON_HEIGHT;
+    // adjust playAgain position
+    playAgain.x = ctx.canvas.width - (BUTTON_WIDTH / 2 + BUTTON_WIDTH + 75);
+    playAgain.y = ctx.canvas.height - (BUTTON_WIDTH / 2 + BUTTON_HEIGHT);
+
+    clear();
+    drawUI();
+}
+
 function clickHandler(e) {
     var mousePos = getMousePos(canvas, e);
     if (!started) {
@@ -159,6 +198,7 @@ function clickHandler(e) {
                     d = buttons[r][c].value;
                     initializeTiles();
                     stopRainbow(welcomeID);
+                    welcomeID = null;
                     clear();
                     started = true;
                     startClock();
@@ -208,7 +248,7 @@ function mousemoveHandler(e) {
 
 function keydownHandler(e) {
     if (started && !finished) {
-        // address issue of player using key to move tile while hovering with mouse  
+        // address issue of player using key to move tile while hovering with mouse
         moveables.forEach(function(tile) {
             if (tile != undefined) {
                 tile.style = tileStyle;
@@ -270,8 +310,8 @@ function initializeButtons() {
         buttons[r] = [];
         for (let c = 0; c < BUTTON_COL_COUNT; c++) {
             buttonPadding = BUTTON_WIDTH / 2;
-            buttonOffsetLeft = (canvas.width - ((BUTTON_COL_COUNT * BUTTON_WIDTH) + ((BUTTON_COL_COUNT - 1) * buttonPadding))) / 2;
-            buttonOffsetTop = (canvas.height - ((BUTTON_ROW_COUNT * BUTTON_HEIGHT) + ((BUTTON_ROW_COUNT - 1) * buttonPadding))) / 2;
+            buttonOffsetLeft = (ctx.canvas.width - ((BUTTON_COL_COUNT * BUTTON_WIDTH) + ((BUTTON_COL_COUNT - 1) * buttonPadding))) / 2;
+            buttonOffsetTop = (ctx.canvas.height - ((BUTTON_ROW_COUNT * BUTTON_HEIGHT) + ((BUTTON_ROW_COUNT - 1) * buttonPadding))) / 2;
             var buttonX = c * (BUTTON_WIDTH + buttonPadding) + buttonOffsetLeft;
             var buttonY = r * (BUTTON_HEIGHT + buttonPadding) + buttonOffsetTop;
             var buttonText = curDim + " x " + curDim;
@@ -300,8 +340,8 @@ function initializeTiles() {
         tiles[r] = [];
         for (let c = 0; c < d; c++) {
             tilePadding = d > 7 ? TILE_WIDTH / 2 : TILE_WIDTH;
-            tileOffsetLeft = (canvas.width - ((d * TILE_WIDTH) + ((d - 1) * tilePadding))) / 2;
-            tileOffsetTop = (canvas.height - ((d * TILE_HEIGHT) + ((d - 1) * tilePadding))) / 2;
+            tileOffsetLeft = (ctx.canvas.width - ((d * TILE_WIDTH) + ((d - 1) * tilePadding))) / 2;
+            tileOffsetTop = (ctx.canvas.height - ((d * TILE_HEIGHT) + ((d - 1) * tilePadding))) / 2;
             var tileX = c * (TILE_WIDTH + tilePadding) + tileOffsetLeft;
             var tileY = r * (TILE_HEIGHT + tilePadding) + tileOffsetTop;
             var ord = d * d - val;
@@ -312,8 +352,6 @@ function initializeTiles() {
     if (d % 2 == 0) swapTiles(tiles[d - 1][d - 2], tiles[d - 1][d - 3]);
     // initialize the empty space
     emp = tiles[d - 1][d - 1];
-    emp.text = " ";
-    emp.style = emptyStyle;
     // record the tiles adjacent to the empty space
     updateMoveables();
 }
@@ -328,11 +366,27 @@ function drawTiles() {
             // var t = tiles[r][c],
             //     tmp = t.style;
             // if (t != emp) t.style = (t.ordinal == t.value) ? tileGoodStyle : tmp;
-            drawInterect(tiles[r][c]);
+            if (r != d - 1 || c != d - 1) drawInterect(tiles[r][c]);
         }
     }
 }
 
+/**
+ * Adjusts tile positions based on window size.
+ */
+function adjustTilePositions() {
+    for (let r = 0; r < d; r++) {
+        for (let c = 0; c < d; c++) {
+            tilePadding = d > 7 ? TILE_WIDTH / 2 : TILE_WIDTH;
+            tileOffsetLeft = (ctx.canvas.width - ((d * TILE_WIDTH) + ((d - 1) * tilePadding))) / 2;
+            tileOffsetTop = (ctx.canvas.height - ((d * TILE_HEIGHT) + ((d - 1) * tilePadding))) / 2;
+            var tileX = c * (TILE_WIDTH + tilePadding) + tileOffsetLeft;
+            var tileY = r * (TILE_HEIGHT + tilePadding) + tileOffsetTop;
+            tiles[r][c].x = tileX;
+            tiles[r][c].y = tileY;
+        }
+    }
+}
 /**
  * Draws a single interect.
  */
@@ -435,6 +489,15 @@ function updateMoveables() {
  * Draws the user interface.
  */
 function drawUI() {
+    if (fancyTilesIDs.length != 0) {
+        stopFancyTiles(fancyTilesIDs);
+        fancyTilesIDs = [];
+    }
+    if (playAgainID != null) {
+        clearInterval(playAgainID);
+        playAgainID = null;
+    }
+
     if (!started) {
         initializeButtons();
         drawButtons();
@@ -449,12 +512,13 @@ function drawUI() {
         } else {
             // fancy tiles effect on win
             fancyTiles();
+            playAgainID = cycleColors(playAgain, COLORS.length - 1, 1000);
         }
     }
 }
 
 /**
- * Creates an interval that updates the clock interect every second. 
+ * Creates an interval that updates the clock interect every second.
  */
 function startClock() {
     var startTime = new Date();
@@ -509,8 +573,8 @@ function congratulate() {
     var message = (d == 3) ? ["Not bad.", "Can you solve a more challenging one now?"] :
         (d > 3 && d <= 6) ? ["Congratulations!", "You've been practicing."] :
         (d > 6 && d <= 9) ? ["Impressive!", "You're really good at this!"] : ["All hail the Master of Fifteen!", "Maybe take a break now?"];
-    
-    rainbow(message[0],
+
+    congratsID = rainbow(message[0],
         canvas.width / 2,
         tileOffsetTop / 2,
         "bold 32px Arial",
@@ -529,11 +593,23 @@ function congratulate() {
 function fancyTiles() {
     let i = 0;
     for (let r = d - 1; r >= 0; r--) {
+        fancyTilesIDs[r] = [];
         for (let c = d - 1; c >= 0; c--) {
             if (tiles[r][c] != emp) {
                 if (i >= COLORS.length) i = 0;
-                cycleColors(tiles[r][c], i++, 100);
+                fancyTilesIDs[r][c] = cycleColors(tiles[r][c], i++, 100);
             }
+        }
+    }
+}
+
+/**
+ * Stops fancy tiles effect.
+ */
+function stopFancyTiles() {
+    for (let r = d - 1; r >= 0; r--) {
+        for (let c = d - 1; c >= 0; c--) {
+            clearInterval(fancyTilesIDs[r][c]);
         }
     }
 }
@@ -543,7 +619,7 @@ function fancyTiles() {
  */
 function cycleColors(interect, startIndex, time) {
     let cur = startIndex;
-    setInterval(function() {
+    return setInterval(function() {
         interect.style.fill = COLORS[cur];
         // hacky fix to make text visible when fill is yellow or green
         interect.style.textColor = (cur == 2 || cur == 3) ? "#000" : "#fff";
@@ -621,7 +697,6 @@ function draw() {
         clear();
         drawUI();
         congratulate();
-        cycleColors(playAgain, COLORS.length - 1, 1000);
     }
 }
 
